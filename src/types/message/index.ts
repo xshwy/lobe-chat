@@ -55,9 +55,7 @@ export interface ChatMessage extends BaseDataModel {
    * parent message id
    */
   parentId?: string;
-  /**
-   * @deprecated
-   */
+
   plugin?: ChatPluginPayload;
   pluginState?: any;
 
@@ -71,7 +69,7 @@ export interface ChatMessage extends BaseDataModel {
   role: LLMRoleType;
   sessionId?: string;
 
-  tool?: ChatToolPayload;
+  tool_call_id?: string;
   tool_calls?: MessageToolCall[];
   tools?: ChatToolPayload[];
 

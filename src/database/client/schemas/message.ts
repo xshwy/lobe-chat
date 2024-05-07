@@ -29,7 +29,7 @@ export const DB_MessageSchema = z.object({
 
   tool_calls: z.array(MessageToolCallSchema).optional(),
   tools: z.array(ToolCallSchema).optional(),
-  tool: ToolCallSchema.optional(),
+  tool_call_id: z.string().optional(),
 
   plugin: PluginSchema.optional(),
   pluginState: z.any().optional(),

@@ -157,8 +157,29 @@ export const chatMessage: StateCreator<
   ChatMessageAction
 > = (set, get) => ({
   deleteMessage: async (id) => {
-    get().internal_dispatchMessage({ type: 'deleteMessage', id });
-    await messageService.removeMessage(id);
+    const message = chatSelectors.getMessageById(id)(get());
+    if (!message) return;
+
+    const deleteFn = async (id: string) => {
+      get().internal_dispatchMessage({ type: 'deleteMessage', id });
+      await messageService.removeMessage(id);
+    };
+
+    // if the message is a tool calls, then delete all the related messages
+    // TODO: maybe we need to delete it in the DB?
+    if (message.tool_calls) {
+      const pools = message.tool_calls
+        .flatMap((tool) => {
+          const messages = get().messages.filter((m) => m.tool_call_id === tool.id);
+
+          return messages.map((m) => m.id);
+        })
+        .map((i) => deleteFn(i));
+
+      await Promise.all(pools);
+    }
+
+    await deleteFn(id);
     await get().refreshMessages();
   },
   delAndRegenerateMessage: async (id) => {

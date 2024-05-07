@@ -422,9 +422,9 @@ class ChatService {
         case 'tool': {
           return {
             content: m.content,
-            name: m.tool_calls?.find((tool) => tool.id === m.tool?.id)?.function.name,
+            name: m.tool_calls?.find((tool) => tool.id === m.tool_call_id)?.function.name,
             role: m.role,
-            tool_call_id: m.tool?.id,
+            tool_call_id: m.tool_call_id,
           };
         }
 
