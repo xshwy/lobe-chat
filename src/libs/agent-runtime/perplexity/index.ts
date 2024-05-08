@@ -1,4 +1,3 @@
-import { OpenAIStream, StreamingTextResponse } from 'ai';
 import OpenAI, { ClientOptions } from 'openai';
 
 import { LobeRuntimeAI } from '../BaseAI';
@@ -8,6 +7,8 @@ import { AgentRuntimeError } from '../utils/createError';
 import { debugStream } from '../utils/debugStream';
 import { desensitizeUrl } from '../utils/desensitizeUrl';
 import { handleOpenAIError } from '../utils/handleOpenAIError';
+import { StreamingResponse } from '../utils/response';
+import { OpenAIStream } from '../utils/streams';
 
 const DEFAULT_BASE_URL = 'https://api.perplexity.ai';
 
@@ -41,7 +42,7 @@ export class LobePerplexityAI implements LobeRuntimeAI {
         debugStream(debug.toReadableStream()).catch(console.error);
       }
 
-      return new StreamingTextResponse(OpenAIStream(prod, options?.callback), {
+      return StreamingResponse(OpenAIStream(prod, options?.callback), {
         headers: options?.headers,
       });
     } catch (error) {
