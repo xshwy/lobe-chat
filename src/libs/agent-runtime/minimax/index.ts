@@ -2,7 +2,7 @@ import { StreamingTextResponse } from 'ai';
 import { isEmpty } from 'lodash-es';
 import OpenAI from 'openai';
 
-import { debugStream } from '@/libs/agent-runtime/utils/debugStream';
+import { MinimaxStream } from '@/libs/agent-runtime/utils/streams/minimax';
 
 import { LobeRuntimeAI } from '../BaseAI';
 import { AgentRuntimeErrorType } from '../error';
@@ -13,6 +13,8 @@ import {
   ModelProvider,
 } from '../types';
 import { AgentRuntimeError } from '../utils/createError';
+import { debugStream } from '../utils/debugStream';
+import { StreamingResponse } from '../utils/response';
 
 interface MinimaxBaseResponse {
   base_resp?: {
@@ -74,13 +76,6 @@ export class LobeMinimaxAI implements LobeRuntimeAI {
     options?: ChatCompetitionOptions,
   ): Promise<StreamingTextResponse> {
     try {
-      let streamController: ReadableStreamDefaultController | undefined;
-      const readableStream = new ReadableStream({
-        start(controller) {
-          streamController = controller;
-        },
-      });
-
       const response = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
         body: JSON.stringify(this.buildCompletionsParams(payload)),
         headers: {
@@ -107,12 +102,10 @@ export class LobeMinimaxAI implements LobeRuntimeAI {
         debugStream(debug).catch(console.error);
       }
 
-      this.parseResponse(prod.getReader(), streamController);
-
       // wait for the first response, and throw error if minix returns an error
       await this.parseFirstResponse(prod2.getReader());
 
-      return new StreamingTextResponse(readableStream, { headers: options?.headers });
+      return StreamingResponse(MinimaxStream(prod), { headers: options?.headers });
     } catch (error) {
       console.log('error', error);
       const err = error as Error | ChatCompletionErrorPayload;
@@ -154,28 +147,17 @@ export class LobeMinimaxAI implements LobeRuntimeAI {
       max_tokens: this.getMaxTokens(payload.model),
       stream: true,
       temperature: temperature === 0 ? undefined : temperature,
+
+      tools: params.tools?.map((tool) => ({
+        function: {
+          description: tool.function.description,
+          name: tool.function.name,
+          parameters: JSON.stringify(tool.function.parameters),
+        },
+        type: 'function',
+      })),
       top_p: top_p === 0 ? undefined : top_p,
     };
-  }
-
-  private async parseResponse(
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-    streamController: ReadableStreamDefaultController | undefined,
-  ) {
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    let done = false;
-
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      const chunkValue = decoder.decode(value, { stream: true });
-      const data = parseMinimaxResponse(chunkValue);
-      const text = data?.choices?.at(0)?.delta?.content || undefined;
-      streamController?.enqueue(encoder.encode(text));
-    }
-
-    streamController?.close();
   }
 
   private async parseFirstResponse(reader: ReadableStreamDefaultReader<Uint8Array>) {
